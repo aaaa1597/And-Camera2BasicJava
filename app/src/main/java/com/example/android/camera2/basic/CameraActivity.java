@@ -17,8 +17,7 @@ import android.os.Bundle;
 import com.example.android.camera2.basic.fragments.SelectorFragment;
 
 public class CameraActivity extends AppCompatActivity {
-
-//    private ActivityCameraBinding activityCameraBinding;
+    public static int ANIMATION_FAST_MILLIS = 50;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

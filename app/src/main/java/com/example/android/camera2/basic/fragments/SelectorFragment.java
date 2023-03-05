@@ -144,7 +144,7 @@ public class SelectorFragment extends Fragment {
             holder.mTxtItem.setText(item.title);
             holder.mTxtItem.setOnClickListener(v1 -> {
                 getActivity().getSupportFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, CameraFragment.newInstance()).commit();
+                        .replace(R.id.fragment_container, CameraFragment.newInstance(item.cameraId, item.format)).commit();
             });
        }
 
