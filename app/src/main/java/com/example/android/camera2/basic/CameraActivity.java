@@ -8,20 +8,27 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.DialogFragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.view.KeyEvent;
 
+import com.example.android.camera2.basic.fragments.CameraFragment;
+import com.example.android.camera2.basic.fragments.ImageViewerFragment;
 import com.example.android.camera2.basic.fragments.SelectorFragment;
 
 public class CameraActivity extends AppCompatActivity {
     public static int ANIMATION_FAST_MILLIS = 50;
+    private CameraViewModel mViewModel;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
+
+        mViewModel = new ViewModelProvider(this).get(CameraViewModel.class);
 
         /* 全画面アプリ設定 */
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -80,5 +87,26 @@ public class CameraActivity extends AppCompatActivity {
                     })
                     .create();
         }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if(event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            /* コンフィグ画面時のBackイベントは、撮像画面に戻る。 */
+            if(getSupportFragmentManager().getFragments().get(0) instanceof ImageViewerFragment) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, CameraFragment.newInstance(mViewModel.getCameraId(), mViewModel.getPixelFormat()))
+                        .commit();
+                return true;
+            }
+            else if(getSupportFragmentManager().getFragments().get(0) instanceof CameraFragment) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, SelectorFragment.newInstance())
+                        .commit();
+                return true;
+            }
+        }
+
+        return super.onKeyDown(keyCode, event);
     }
 }

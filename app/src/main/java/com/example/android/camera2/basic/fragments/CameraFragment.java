@@ -3,6 +3,7 @@ package com.example.android.camera2.basic.fragments;
 import static android.util.Log.d;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -28,10 +29,12 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
+import android.util.Pair;
 import android.util.Size;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -43,6 +46,7 @@ import android.view.ViewGroup;
 
 import com.example.android.camera2.basic.AutoFitSurfaceView;
 import com.example.android.camera2.basic.CameraActivity;
+import com.example.android.camera2.basic.CameraViewModel;
 import com.example.android.camera2.basic.OrientationLiveData;
 import com.example.android.camera2.basic.R;
 
@@ -63,9 +67,7 @@ import kotlin.jvm.functions.Function1;
 import kotlinx.coroutines.Dispatchers;
 
 public class CameraFragment extends Fragment {
-    String cameraId;
-    int pixelFormat;
-
+    private CameraViewModel mViewModel;
     /** Detects, characterizes, and connects to a CameraDevice (used for all camera operations) */
     private CameraManager cameraManager;
     /** [CameraCharacteristics] corresponding to the provided Camera ID */
@@ -89,9 +91,9 @@ public class CameraFragment extends Fragment {
     /** Live data listener for changes in the device orientation relative to the camera */
     private OrientationLiveData relativeOrientation;
 
-    public CameraFragment(String acameraId, int format) {
-        cameraId = acameraId;
-        pixelFormat = format;
+    private Pair<String, Integer> tmpArg;
+    public CameraFragment(String cameraId, int format) {
+        tmpArg = new Pair<>(cameraId, format);
     }
 
     public static CameraFragment newInstance(String cameraId, int format) {
@@ -102,11 +104,15 @@ public class CameraFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        mViewModel = new ViewModelProvider(requireActivity()).get(CameraViewModel.class);
+        mViewModel.setCameraId(tmpArg.first);
+        mViewModel.setPixelFormat(tmpArg.second);
+
         Context context = requireContext().getApplicationContext();
         cameraManager = (CameraManager)context.getSystemService(Context.CAMERA_SERVICE);
 
         try {
-            characteristics = cameraManager.getCameraCharacteristics(cameraId);
+            characteristics = cameraManager.getCameraCharacteristics(mViewModel.getCameraId());
         }
         catch(CameraAccessException e) {
             throw new RuntimeException(e);
@@ -184,18 +190,19 @@ public class CameraFragment extends Fragment {
      * - Starts the preview by dispatching a repeating capture request
      * - Sets up the still image capture listeners
      */
+    @SuppressLint("WrongConstant")
     private void initializeCamera(@NonNull View view) {
         // Open the selected camera
-        openCamera(cameraManager, cameraId, cameraHandler);
+        openCamera(cameraManager, mViewModel.getCameraId(), cameraHandler);
         while(camera == null) {
             try { Thread.sleep(10); }
             catch(InterruptedException e) { }
         }
 
         // Initialize an image reader which will be used to capture still photos
-        Size[] sizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(pixelFormat);
+        Size[] sizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(mViewModel.getPixelFormat());
         Size size = Arrays.stream(sizes).max((o1, o2) -> o2.getWidth()*o2.getHeight()-o1.getWidth()*o1.getHeight()).get();
-        imageReader = ImageReader.newInstance(size.getWidth(), size.getHeight(), pixelFormat, IMAGE_BUFFER_SIZE);
+        imageReader = ImageReader.newInstance(size.getWidth(), size.getHeight(), mViewModel.getPixelFormat(), IMAGE_BUFFER_SIZE);
 
         // Creates list of Surfaces where the camera will output frames
         List<Surface> targets = Arrays.asList(((SurfaceView)view.findViewById(R.id.view_finder)).getHolder().getSurface(), imageReader.getSurface());
@@ -269,14 +276,14 @@ public class CameraFragment extends Fragment {
                         @Override
                         public void onDisconnected(@NonNull CameraDevice camera) {
                             Log.w("aaaaa", String.format("Camera %s has been disconnected", cameraId));
-                            requireActivity().finish();
+//                            requireActivity().finish();
                         }
 
                         @Override
                         public void onError(@NonNull CameraDevice camera, int error) {
                             Function1<Integer, String> getMessage = (what) -> {
                                 switch(what) {
-                                    case ERROR_CAMERA_DEVICE:      return  "Fatal (device)";
+                                    case ERROR_CAMERA_DEVICE:      return "Fatal (device)";
                                     case ERROR_CAMERA_DISABLED:    return "Device policy";
                                     case ERROR_CAMERA_IN_USE:      return "Camera in use";
                                     case ERROR_CAMERA_SERVICE:     return "Fatal (service)";
